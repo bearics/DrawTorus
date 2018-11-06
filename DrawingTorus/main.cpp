@@ -14,7 +14,7 @@ static float torus[36][18][3] = {
 /**
 	Rotate 10 degrees on the y axis.
 */
-float* MajorRotate(int nCircle, int nCoordinate, float theta)
+float* MajorRotate(int nCircle, int nPoint, float theta)
 {
 	float sinTheta = sin(theta*PI / 180.0);
 	float cosTheta = cos(theta*PI / 180.0);
@@ -23,7 +23,7 @@ float* MajorRotate(int nCircle, int nCoordinate, float theta)
 	float calculateMatrix[4][4] = { 0, };
 
 	for (int i = 0; i < 3; i++)
-		inputCoordinate[i] = torus[nCircle][nCoordinate][i];
+		inputCoordinate[i] = torus[nCircle][nPoint][i];
 	inputCoordinate[3] = 1;
 
 	// init calculation matrix
@@ -50,7 +50,7 @@ float* MajorRotate(int nCircle, int nCoordinate, float theta)
 /**
 	Move coordinate by -x, -y and rotate coordinate by theta, move coordinate by x, y.
 */
-float* MinorRotate(int nCircle, int nCoordinate, float theta, float x, float y)
+float* MinorRotate(int nCircle, int nPoint, float theta, float x, float y)
 {	
 	float sinTheta = sin(theta*PI / 180.0);
 	float cosTheta = cos(theta*PI / 180.0);
@@ -59,7 +59,7 @@ float* MinorRotate(int nCircle, int nCoordinate, float theta, float x, float y)
 	float calculateMatrix[3][3] = { 0, };
 
 	for(int i = 0; i < 2; i ++)
-		inputCoordinate[i] = torus[nCircle][nCoordinate][i];
+		inputCoordinate[i] = torus[nCircle][nPoint][i];
 	inputCoordinate[2] = 1;
 
 	// init calculation matrix
@@ -98,18 +98,18 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 	startPoint[1] = height;
 	memcpy(torus[0][0], startPoint, sizeof(startPoint));
 
-	for (int nCoordinate = 0; nCoordinate < 18; nCoordinate++)
+	for (int nPoint = 0; nPoint < 18; nPoint++)
 	{	
 		for (int nCircle = 0; nCircle < 36; nCircle++)
 		{
 			// rotate circle's coordinate by y-axis
-			nextPoint = MajorRotate(nCircle , nCoordinate, 10.0);
-			memcpy(torus[(nCircle + 1) % 36][nCoordinate], nextPoint, sizeof(float) * 3);
+			nextPoint = MajorRotate(nCircle , nPoint, 10.0);
+			memcpy(torus[(nCircle + 1) % 36][nPoint], nextPoint, sizeof(float) * 3);
 		}
 
 		// rotate coordinate in circle
-		nextPoint = MinorRotate(0, nCoordinate, 20.0, majorRadius, height);
-		memcpy(torus[0][(nCoordinate + 1) % 18], nextPoint, sizeof(float) * 2);
+		nextPoint = MinorRotate(0, nPoint, 20.0, majorRadius, height);
+		memcpy(torus[0][(nPoint + 1) % 18], nextPoint, sizeof(float) * 2);
 
 
 	}
@@ -143,14 +143,14 @@ void DrawCoordinationSystem(void)
 /**
 	Draw torus as dots
 */
-void DrawTorusAsDots(int nCircle, int nCoordinate)
+void DrawTorusAsDots(int nCircle, int nPoint)
 {
 	glColor3f(0, 0, 0);
 	glBegin(GL_POINTS);
 	{
 		for (int circle = 0; circle < nCircle; circle++)
 		{
-			for (int coordinate = 0; coordinate < nCoordinate; coordinate++)
+			for (int coordinate = 0; coordinate < nPoint; coordinate++)
 			{
 				glVertex3f(torus[circle][coordinate][0], torus[circle][coordinate][1], torus[circle][coordinate][2]);
 			}
@@ -162,14 +162,14 @@ void DrawTorusAsDots(int nCircle, int nCoordinate)
 /**
 	Draw torus as lines
 */
-void DrawTorusAsLines(int nCircle, int nCoordinate, float epsilon)
+void DrawTorusAsLines(int nCircle, int nPoint, float epsilon)
 {
 	glColor3f(0, 0, 0);
 	for (int circle = 0; circle < nCircle; circle++)
 	{
 		glBegin(GL_LINE_STRIP);
 		{
-			for (int coordinate = 0; coordinate < nCoordinate; coordinate++)
+			for (int coordinate = 0; coordinate < nPoint; coordinate++)
 			{
 				glVertex3f(torus[circle][coordinate][0], torus[circle][coordinate][1], torus[circle][coordinate][2]);
 			}
@@ -178,7 +178,7 @@ void DrawTorusAsLines(int nCircle, int nCoordinate, float epsilon)
 		glEnd();
 	}
 
-	for (int coordinate = 0; coordinate < nCoordinate; coordinate++)
+	for (int coordinate = 0; coordinate < nPoint; coordinate++)
 	{
 		glBegin(GL_LINE_STRIP);
 		{
@@ -202,7 +202,7 @@ void RenderScene()
 		
 	gluLookAt(viewer[0], viewer[1], viewer[2], 0, 0, 0, 0, 1, 0);
 
-	// draw coodrination system
+	// draw cooddination system
 	DrawCoordinationSystem();
 
 	// draw torus as dots
@@ -244,7 +244,6 @@ void ChangeSize(int w, int h)
 	glLoadIdentity();
 	
 }
-
 
 void main(int argc, char* argv[])
 {
