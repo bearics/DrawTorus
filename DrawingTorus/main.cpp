@@ -11,10 +11,16 @@ static float viewer[3];
 static float torus[36][18][3] = {
 	{{0,0,1}}
 };
-static int nTorusCircles = 1;
+static float smallTorus[36][18][3] = { 0, };
+static float bigTorus[36][18][3] = { 0, };
+
+static float normalVector[36][18][3] = { 0, };
+static float polygonCenterPoint[36][18][3] = { 0, };
+static float circleCenterPoint[36][3] = { 0, };
+
+static int nTorusCircles = 5;
 static int nTorusPoints = 18;
-static int TorusTypes = 2;
-// [0] : number of circles to show, [1] : number of points to show
+static int TorusTypes = 6;
 
 /**
 	Rotate 10 degrees on the y axis.
@@ -56,14 +62,14 @@ float* MajorRotate(int nCircle, int nPoint, float theta)
 	Move Point by -x, -y and rotate Point by theta, move Point by x, y.
 */
 float* MinorRotate(int nCircle, int nPoint, float theta, float x, float y)
-{	
+{
 	float sinTheta = sin(theta*PI / 180.0);
 	float cosTheta = cos(theta*PI / 180.0);
 	float inputPoint[3];
 	float resultPoint[2];
 	float calculateMatrix[3][3] = { 0, };
 
-	for(int i = 0; i < 2; i ++)
+	for (int i = 0; i < 2; i++)
 		inputPoint[i] = torus[nCircle][nPoint][i];
 	inputPoint[2] = 1;
 
@@ -85,7 +91,7 @@ float* MinorRotate(int nCircle, int nPoint, float theta, float x, float y)
 		}
 		resultPoint[rol] = sum;
 	}
-	
+
 	return resultPoint;
 }
 
@@ -95,31 +101,60 @@ float* MinorRotate(int nCircle, int nPoint, float theta, float x, float y)
 void InitDrawTorus(float minorRadius, float majorRadius, float height)
 {
 	glColor3f(0, 0, 0);
-	
+
 	// set start point using minor radius
-	float startPoint[3] = { 0,0,0};
+	float startPoint[3] = { 0,0,0 };
 	float* nextPoint;
-	startPoint[0] = majorRadius + minorRadius;
+	startPoint[0] = majorRadius + minorRadius*2;
 	startPoint[1] = height;
 	memcpy(torus[0][0], startPoint, sizeof(startPoint));
 
 	for (int nPoint = 0; nPoint < 18; nPoint++)
-	{	
+	{
 		for (int nCircle = 0; nCircle < 36; nCircle++)
 		{
 			// rotate circle's Point by y-axis
-			nextPoint = MajorRotate(nCircle , nPoint, 10.0);
+			nextPoint = MajorRotate(nCircle, nPoint, 10.0);
 			memcpy(torus[(nCircle + 1) % 36][nPoint], nextPoint, sizeof(float) * 3);
 		}
 
 		// rotate Point in circle
-		nextPoint = MinorRotate(0, nPoint, 20.0, majorRadius, height);
+		nextPoint = MinorRotate(0, nPoint, 20.0, majorRadius + minorRadius, height);
 		memcpy(torus[0][(nPoint + 1) % 18], nextPoint, sizeof(float) * 2);
-
-
 	}
 
-	startPoint[1] = startPoint[1];
+	for (int nCircle = 0; nCircle < 36; nCircle++)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			circleCenterPoint[nCircle][i] = (torus[nCircle][0][i] + torus[nCircle][9][i]) / 2;
+		}
+	}
+
+	for (int nCircle = 0; nCircle < 36; nCircle++)
+	{
+		for (int nPoint = 0; nPoint < 18; nPoint++)
+		{
+			for (int i = 0; i < 3; i++)
+			{	// get Vertical vector
+				for (int y = 0; y < 2; y++)
+				{
+					for (int x = 0; x < 2; x++)
+					{
+						polygonCenterPoint[nCircle][nPoint][i] += torus[(nCircle + y) % 36][(nPoint + x) % 18][i];
+					}
+				}
+				polygonCenterPoint[nCircle][nPoint][i] /= 4;
+			}
+
+			for (int i = 0; i < 3; i++)
+			{	// get normal vector
+				normalVector[nCircle][nPoint][i] = (polygonCenterPoint[nCircle][nPoint][i] - (circleCenterPoint[nCircle][i] + circleCenterPoint[(nCircle + 1) % 36][i]) / 2.0) / minorRadius;
+			}
+		}
+	}
+
+	nextPoint = nextPoint;
 }
 
 /**
@@ -167,7 +202,7 @@ void DrawTorusAsDots(int nCircle, int nPoint)
 /**
 	Draw torus as lines
 */
-void DrawTorusAsLines(int nCircle, int nPoint, float epsilon)
+void DrawTorusAsLines(int nCircle, int nPoint, int epsilon)
 {
 	glColor3f(0, 0, 0);
 	for (int circle = 0; circle < nCircle + 1; circle++)
@@ -183,14 +218,14 @@ void DrawTorusAsLines(int nCircle, int nPoint, float epsilon)
 		glEnd();
 	}
 
-	for (int point = 0; point < nPoint+1; point++)
+	for (int point = 0; point < nPoint + 1; point++)
 	{	// major rotate
 		glBegin(GL_LINE_STRIP);
 		{
 			glVertex3f(torus[0][point % 18][0], torus[0][point % 18][1], torus[0][point % 18][2]);
 			for (int circle = 0; circle < nCircle; circle++)
 			{
-				glVertex3f(torus[(circle + 1) % 36][point%18][0], torus[(circle + 1) % 36][point % 18][1], torus[(circle + 1) % 36][point % 18][2]);
+				glVertex3f(torus[(circle + 1) % 36][point % 18][0], torus[(circle + 1) % 36][point % 18][1], torus[(circle + 1) % 36][point % 18][2]);
 			}
 		}
 		glEnd();
@@ -206,7 +241,7 @@ void DrawTorusAsQuads(int nCircle, int nPoint)
 	glColor3f(0, 0, 1);
 
 	for (int circle = 0; circle < nCircle; circle++)
-	{	// minor rotate
+	{
 		for (int point = 0; point < nPoint; point++)
 		{
 			glBegin(GL_POLYGON);
@@ -215,9 +250,29 @@ void DrawTorusAsQuads(int nCircle, int nPoint)
 				{
 					for (int y = 0; y < 2; y++)
 					{
-						glVertex3f(torus[(circle + 1 - x)%36][(point + 1 - (x+y)%2)%18][0], torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][1], torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][2]);
+						glVertex3f(torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][0], torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][1], torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][2]);
 					}
 				}
+			}
+			glEnd();
+		}
+	}
+}
+
+/**
+	Draw normal vectors and Quads
+*/
+void DrawNormalVector(int nCircle, int nPoint)
+{
+	for (int circle = 0; circle < nCircle; circle++)
+	{
+		for (int point = 0; point < nPoint; point++)
+		{
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			{
+				glVertex3f(polygonCenterPoint[circle][point][0], polygonCenterPoint[circle][point][1], polygonCenterPoint[circle][point][2]);
+				glVertex3f(polygonCenterPoint[circle][point][0] + normalVector[circle][point][0], polygonCenterPoint[circle][point][1] + normalVector[circle][point][1], polygonCenterPoint[circle][point][2] + normalVector[circle][point][2]);
 			}
 			glEnd();
 		}
@@ -232,7 +287,7 @@ void RenderScene()
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-		
+
 	gluLookAt(viewer[0], viewer[1], viewer[2], 0, 0, 0, 0, 1, 0);
 
 	// Draw cooddination system
@@ -244,10 +299,16 @@ void RenderScene()
 		DrawTorusAsDots(nTorusCircles, nTorusPoints);
 		break;
 	case 2:	// Draw torus only lines
-		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0.0);
+		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0);
 		break;
 	case 3:	// Draw torus only quads
 		DrawTorusAsQuads(nTorusCircles, nTorusPoints);
+		break;
+	case 6:	// Draw torus only quads with normal vector
+		//DrawTorusAsQuads(nTorusCircles, nTorusPoints);
+		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0);
+
+		DrawNormalVector(nTorusCircles, nTorusPoints);
 		break;
 
 	}
@@ -259,9 +320,9 @@ void RenderScene()
 
 void init(void)
 {
-	viewer[0] = 15;
-	viewer[1] = 15;
-	viewer[2] = 15;
+	viewer[0] = 20;
+	viewer[1] = 20;
+	viewer[2] = 20;
 }
 
 void SetupRC(void)
@@ -282,7 +343,7 @@ void ChangeSize(int w, int h)
 	//set modelview matrix
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	
+
 }
 
 void ResetDisplay()
