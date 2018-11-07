@@ -3,6 +3,7 @@
 #include <gl/GLU.h>
 #include <gl/glut.h>
 #include <math.h>
+#include <iostream>
 
 #define PI 3.14159265
 
@@ -10,6 +11,10 @@ static float viewer[3];
 static float torus[36][18][3] = {
 	{{0,0,1}}
 };
+static int nTorusCircles = 1;
+static int nTorusPoints = 18;
+static int TorusTypes = 2;
+// [0] : number of circles to show, [1] : number of points to show
 
 /**
 	Rotate 10 degrees on the y axis.
@@ -18,13 +23,13 @@ float* MajorRotate(int nCircle, int nPoint, float theta)
 {
 	float sinTheta = sin(theta*PI / 180.0);
 	float cosTheta = cos(theta*PI / 180.0);
-	float inputCoordinate[4];
-	float resultCoordinate[3];
+	float inputPoint[4];
+	float resultPoint[3];
 	float calculateMatrix[4][4] = { 0, };
 
 	for (int i = 0; i < 3; i++)
-		inputCoordinate[i] = torus[nCircle][nPoint][i];
-	inputCoordinate[3] = 1;
+		inputPoint[i] = torus[nCircle][nPoint][i];
+	inputPoint[3] = 1;
 
 	// init calculation matrix
 	calculateMatrix[0][0] = cosTheta;
@@ -39,28 +44,28 @@ float* MajorRotate(int nCircle, int nPoint, float theta)
 		float sum = 0;
 		for (int col = 0; col < 4; col++)
 		{
-			sum += calculateMatrix[rol][col] * inputCoordinate[col];
+			sum += calculateMatrix[rol][col] * inputPoint[col];
 		}
-		resultCoordinate[rol] = sum;
+		resultPoint[rol] = sum;
 	}
 
-	return resultCoordinate;
+	return resultPoint;
 }
 
 /**
-	Move coordinate by -x, -y and rotate coordinate by theta, move coordinate by x, y.
+	Move Point by -x, -y and rotate Point by theta, move Point by x, y.
 */
 float* MinorRotate(int nCircle, int nPoint, float theta, float x, float y)
 {	
 	float sinTheta = sin(theta*PI / 180.0);
 	float cosTheta = cos(theta*PI / 180.0);
-	float inputCoordinate[3];
-	float resultCoordinate[2];
+	float inputPoint[3];
+	float resultPoint[2];
 	float calculateMatrix[3][3] = { 0, };
 
 	for(int i = 0; i < 2; i ++)
-		inputCoordinate[i] = torus[nCircle][nPoint][i];
-	inputCoordinate[2] = 1;
+		inputPoint[i] = torus[nCircle][nPoint][i];
+	inputPoint[2] = 1;
 
 	// init calculation matrix
 	calculateMatrix[0][0] = cosTheta;
@@ -76,16 +81,16 @@ float* MinorRotate(int nCircle, int nPoint, float theta, float x, float y)
 		float sum = 0;
 		for (int col = 0; col < 3; col++)
 		{
-			sum += calculateMatrix[rol][col] * inputCoordinate[col];
+			sum += calculateMatrix[rol][col] * inputPoint[col];
 		}
-		resultCoordinate[rol] = sum;
+		resultPoint[rol] = sum;
 	}
 	
-	return resultCoordinate;
+	return resultPoint;
 }
 
 /**
-	Calculate torus's coordinates.
+	Calculate torus's Points.
 */
 void InitDrawTorus(float minorRadius, float majorRadius, float height)
 {
@@ -102,12 +107,12 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 	{	
 		for (int nCircle = 0; nCircle < 36; nCircle++)
 		{
-			// rotate circle's coordinate by y-axis
+			// rotate circle's Point by y-axis
 			nextPoint = MajorRotate(nCircle , nPoint, 10.0);
 			memcpy(torus[(nCircle + 1) % 36][nPoint], nextPoint, sizeof(float) * 3);
 		}
 
-		// rotate coordinate in circle
+		// rotate Point in circle
 		nextPoint = MinorRotate(0, nPoint, 20.0, majorRadius, height);
 		memcpy(torus[0][(nPoint + 1) % 18], nextPoint, sizeof(float) * 2);
 
@@ -120,22 +125,22 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 /**
 	Draw Coodrination system.
 */
-void DrawCoordinationSystem(void)
+void DrawCoordinationSystem(float length)
 {
 	glBegin(GL_LINES);
 	{
 		// x-axis
 		glColor3f(1, 0, 0);
 		glVertex3f(0, 0, 0);
-		glVertex3f(10, 0, 0);
+		glVertex3f(length, 0, 0);
 		// y-axis
 		glColor3f(0, 1, 0);
 		glVertex3f(0, 0, 0);
-		glVertex3f(0, 10, 0);
+		glVertex3f(0, length, 0);
 		// z-axis
 		glColor3f(0, 0, 1);
 		glVertex3f(0, 0, 0);
-		glVertex3f(0, 0, 10);
+		glVertex3f(0, 0, length);
 	}
 	glEnd();
 }
@@ -150,9 +155,9 @@ void DrawTorusAsDots(int nCircle, int nPoint)
 	{
 		for (int circle = 0; circle < nCircle; circle++)
 		{
-			for (int coordinate = 0; coordinate < nPoint; coordinate++)
+			for (int point = 0; point < nPoint; point++)
 			{
-				glVertex3f(torus[circle][coordinate][0], torus[circle][coordinate][1], torus[circle][coordinate][2]);
+				glVertex3f(torus[circle][point][0], torus[circle][point][1], torus[circle][point][2]);
 			}
 		}
 	}
@@ -165,26 +170,27 @@ void DrawTorusAsDots(int nCircle, int nPoint)
 void DrawTorusAsLines(int nCircle, int nPoint, float epsilon)
 {
 	glColor3f(0, 0, 0);
-	for (int circle = 0; circle < nCircle; circle++)
-	{
+	for (int circle = 0; circle < nCircle + 1; circle++)
+	{	// minor rotate
 		glBegin(GL_LINE_STRIP);
 		{
-			for (int coordinate = 0; coordinate < nPoint; coordinate++)
+			glVertex3f(torus[circle % 36][0][0], torus[circle % 36][0][1], torus[circle % 36][0][2]);
+			for (int point = 0; point < nPoint; point++)
 			{
-				glVertex3f(torus[circle][coordinate][0], torus[circle][coordinate][1], torus[circle][coordinate][2]);
+				glVertex3f(torus[circle % 36][(point + 1) % 18][0], torus[circle % 36][(point + 1) % 18][1], torus[circle % 36][(point + 1) % 18][2]);
 			}
-			glVertex3f(torus[circle][0][0], torus[circle][0][1], torus[circle][0][2]);
 		}
 		glEnd();
 	}
 
-	for (int coordinate = 0; coordinate < nPoint; coordinate++)
-	{
+	for (int point = 0; point < nPoint+1; point++)
+	{	// major rotate
 		glBegin(GL_LINE_STRIP);
 		{
+			glVertex3f(torus[0][point % 18][0], torus[0][point % 18][1], torus[0][point % 18][2]);
 			for (int circle = 0; circle < nCircle; circle++)
 			{
-				glVertex3f(torus[circle][coordinate][0], torus[circle][coordinate][1], torus[circle][coordinate][2]);
+				glVertex3f(torus[(circle + 1) % 36][point%18][0], torus[(circle + 1) % 36][point % 18][1], torus[(circle + 1) % 36][point % 18][2]);
 			}
 		}
 		glEnd();
@@ -193,8 +199,11 @@ void DrawTorusAsLines(int nCircle, int nPoint, float epsilon)
 }
 
 
+
+
 void RenderScene()
 {
+	printf_s("circle : %d, point : %d\n", nTorusCircles, nTorusPoints);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the window
 
 	glMatrixMode(GL_MODELVIEW);
@@ -202,14 +211,22 @@ void RenderScene()
 		
 	gluLookAt(viewer[0], viewer[1], viewer[2], 0, 0, 0, 0, 1, 0);
 
-	// draw cooddination system
-	DrawCoordinationSystem();
+	// Draw cooddination system
+	DrawCoordinationSystem(20);
 
-	// draw torus as dots
-	DrawTorusAsDots(36, 18);
+	switch (TorusTypes)
+	{
+	case 1:	// Draw torus only dots
+		DrawTorusAsDots(nTorusCircles, nTorusPoints);
+		break;
+	case 2:	// Draw torus only lines
+		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0.0);
+		break;
+	case 3:	// Draw torus only quads
+		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0.0);
+		break;
 
-	// draw torus as lines
-	DrawTorusAsLines(36, 18, 0.0);
+	}
 
 
 	glutSwapBuffers();
@@ -227,7 +244,6 @@ void SetupRC(void)
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);	// set clear color
 	glEnable(GL_DEPTH_TEST);
-
 }
 
 void ChangeSize(int w, int h)
@@ -245,6 +261,29 @@ void ChangeSize(int w, int h)
 	
 }
 
+void ResetDisplay()
+{
+
+}
+
+void Keyboard(unsigned char key, int x, int y)
+{
+	if (key == 'a') nTorusCircles = nTorusCircles < 36 ? nTorusCircles + 1 : nTorusCircles;
+	if (key == 's') nTorusCircles = nTorusCircles > 0 ? nTorusCircles - 1 : nTorusCircles;
+	if (key == 'j') nTorusPoints = nTorusPoints < 18 ? nTorusPoints + 1 : nTorusPoints;
+	if (key == 'k') nTorusPoints = nTorusPoints > 0 ? nTorusPoints - 1 : nTorusPoints;
+
+	if (key == '1') TorusTypes = 1;
+	if (key == '2') TorusTypes = 2;
+	if (key == '3') TorusTypes = 3;
+	if (key == '4') TorusTypes = 4;
+	if (key == '5') TorusTypes = 5;
+	if (key == '6') TorusTypes = 6;
+	if (key == '7') TorusTypes = 7;
+
+	RenderScene();
+}
+
 void main(int argc, char* argv[])
 {
 	init();
@@ -255,6 +294,7 @@ void main(int argc, char* argv[])
 	InitDrawTorus(1.0, 3.0, 5.0);
 	glutReshapeFunc(ChangeSize);
 	glutDisplayFunc(RenderScene);
+	glutKeyboardFunc(Keyboard);
 	SetupRC();	// Init Function
 	glutMainLoop();
 }
