@@ -198,7 +198,31 @@ void DrawTorusAsLines(int nCircle, int nPoint, float epsilon)
 
 }
 
+/**
+	Draw torus as Quads
+*/
+void DrawTorusAsQuads(int nCircle, int nPoint)
+{
+	glColor3f(0, 0, 1);
 
+	for (int circle = 0; circle < nCircle; circle++)
+	{	// minor rotate
+		for (int point = 0; point < nPoint; point++)
+		{
+			glBegin(GL_POLYGON);
+			{
+				for (int x = 0; x < 2; x++)
+				{
+					for (int y = 0; y < 2; y++)
+					{
+						glVertex3f(torus[(circle + 1 - x)%36][(point + 1 - (x+y)%2)%18][0], torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][1], torus[(circle + 1 - x) % 36][(point + 1 - (x + y) % 2) % 18][2]);
+					}
+				}
+			}
+			glEnd();
+		}
+	}
+}
 
 
 void RenderScene()
@@ -223,7 +247,7 @@ void RenderScene()
 		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0.0);
 		break;
 	case 3:	// Draw torus only quads
-		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0.0);
+		DrawTorusAsQuads(nTorusCircles, nTorusPoints);
 		break;
 
 	}
