@@ -6,6 +6,7 @@
 #include <iostream>
 
 #define PI 3.14159265
+#define EPS 0.0001	// epsilon
 
 static float viewer[3];
 static float torus[36][18][3] = {
@@ -18,12 +19,47 @@ static float normalVector[36][18][3] = { 0, };
 static float polygonCenterPoint[36][18][3] = { 0, };
 static float circleCenterPoint[36][3] = { 0, };
 
-static int nTorusCircles = 5;
-static int nTorusPoints = 18;
-static int TorusTypes = 6;
+static int nTorusCircles = 8;
+static int nTorusPoints = 12;
+static int TorusTypes = 3;
+static bool normalVectorPolygons = FALSE;
+static bool normalVectorPoints = FALSE;
 
 /**
-	Rotate 10 degrees on the y axis.
+	Scale the point
+*/
+float* Scaling(float* point, float* centerPoint, float size)
+{
+	float inputMatrix[4] = { 1, };
+	float resultMatrix[3] = { 0, };
+	float calculateMatrix[4][4] = { 0, };
+
+	memcpy(inputMatrix, point, sizeof(float) * 3);
+
+	calculateMatrix[0][0] = size;
+	calculateMatrix[1][1] = size;
+	calculateMatrix[2][2] = size;
+	calculateMatrix[3][3] = 1;
+
+	calculateMatrix[0][3] = (1 - size)*centerPoint[0];
+	calculateMatrix[1][3] = (1 - size)*centerPoint[1];
+	calculateMatrix[2][3] = (1 - size)*centerPoint[2];
+
+	for (int y = 0; y < 3; y++)
+	{
+		float sum = 0;
+		for (int x = 0; x < 4; x++)
+		{
+			sum += calculateMatrix[y][x] * inputMatrix[x];
+		}
+		resultMatrix[y] = sum;
+	}
+
+	return resultMatrix;
+}
+
+/**
+	Rotate theta degrees on the y axis.
 */
 float* MajorRotate(int nCircle, int nPoint, float theta)
 {
@@ -131,6 +167,19 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 		}
 	}
 
+	// get big torus and small torus 
+	for (int nCircle = 0; nCircle < 36; nCircle++)
+	{
+		for (int nPoint = 0; nPoint < 18; nPoint++)
+		{
+			nextPoint = Scaling(torus[nCircle][nPoint], circleCenterPoint[nCircle], 1 + EPS);
+			memcpy(bigTorus[nCircle][nPoint], nextPoint, sizeof(float) * 3);
+			nextPoint = Scaling(torus[nCircle][nPoint], circleCenterPoint[nCircle], 1 - EPS);
+			memcpy(smallTorus[nCircle][nPoint], nextPoint, sizeof(float) * 3);
+		}
+	}
+
+	// get normal vector
 	for (int nCircle = 0; nCircle < 36; nCircle++)
 	{
 		for (int nPoint = 0; nPoint < 18; nPoint++)
@@ -204,15 +253,23 @@ void DrawTorusAsDots(int nCircle, int nPoint)
 */
 void DrawTorusAsLines(int nCircle, int nPoint, int epsilon)
 {
+	float lineTorus[36][18][3] = { 0, };
+	if (epsilon > 0)
+		memcpy(lineTorus, bigTorus, sizeof(lineTorus));
+	else if (epsilon < 0)
+		memcpy(lineTorus, smallTorus, sizeof(lineTorus));
+	else
+		memcpy(lineTorus, torus, sizeof(lineTorus));
+	
 	glColor3f(0, 0, 0);
 	for (int circle = 0; circle < nCircle + 1; circle++)
 	{	// minor rotate
 		glBegin(GL_LINE_STRIP);
 		{
-			glVertex3f(torus[circle % 36][0][0], torus[circle % 36][0][1], torus[circle % 36][0][2]);
+			glVertex3f(lineTorus[circle % 36][0][0], lineTorus[circle % 36][0][1], lineTorus[circle % 36][0][2]);
 			for (int point = 0; point < nPoint; point++)
 			{
-				glVertex3f(torus[circle % 36][(point + 1) % 18][0], torus[circle % 36][(point + 1) % 18][1], torus[circle % 36][(point + 1) % 18][2]);
+				glVertex3f(lineTorus[circle % 36][(point + 1) % 18][0], lineTorus[circle % 36][(point + 1) % 18][1], lineTorus[circle % 36][(point + 1) % 18][2]);
 			}
 		}
 		glEnd();
@@ -222,10 +279,10 @@ void DrawTorusAsLines(int nCircle, int nPoint, int epsilon)
 	{	// major rotate
 		glBegin(GL_LINE_STRIP);
 		{
-			glVertex3f(torus[0][point % 18][0], torus[0][point % 18][1], torus[0][point % 18][2]);
+			glVertex3f(lineTorus[0][point % 18][0], lineTorus[0][point % 18][1], lineTorus[0][point % 18][2]);
 			for (int circle = 0; circle < nCircle; circle++)
 			{
-				glVertex3f(torus[(circle + 1) % 36][point % 18][0], torus[(circle + 1) % 36][point % 18][1], torus[(circle + 1) % 36][point % 18][2]);
+				glVertex3f(lineTorus[(circle + 1) % 36][point % 18][0], lineTorus[(circle + 1) % 36][point % 18][1], lineTorus[(circle + 1) % 36][point % 18][2]);
 			}
 		}
 		glEnd();
@@ -260,9 +317,9 @@ void DrawTorusAsQuads(int nCircle, int nPoint)
 }
 
 /**
-	Draw normal vectors and Quads
+	Draw normal vectors of Polygons and Quads
 */
-void DrawNormalVector(int nCircle, int nPoint)
+void DrawNormalVectorPolygons(int nCircle, int nPoint)
 {
 	for (int circle = 0; circle < nCircle; circle++)
 	{
@@ -304,14 +361,18 @@ void RenderScene()
 	case 3:	// Draw torus only quads
 		DrawTorusAsQuads(nTorusCircles, nTorusPoints);
 		break;
-	case 6:	// Draw torus only quads with normal vector
-		//DrawTorusAsQuads(nTorusCircles, nTorusPoints);
-		DrawTorusAsLines(nTorusCircles, nTorusPoints, 0);
-
-		DrawNormalVector(nTorusCircles, nTorusPoints);
+	case 4:	// Draw torus only quads
+		DrawTorusAsLines(nTorusCircles, nTorusPoints, -1);
+		DrawTorusAsQuads(nTorusCircles, nTorusPoints);
+		DrawTorusAsLines(nTorusCircles, nTorusPoints, 1);
 		break;
 
 	}
+
+	if(normalVectorPolygons)
+		DrawNormalVectorPolygons(nTorusCircles, nTorusPoints);
+	//if(normalVectorPoints)
+		
 
 
 	glutSwapBuffers();
@@ -320,9 +381,9 @@ void RenderScene()
 
 void init(void)
 {
-	viewer[0] = 20;
-	viewer[1] = 20;
-	viewer[2] = 20;
+	viewer[0] = 15;
+	viewer[1] = 15;
+	viewer[2] = 15;
 }
 
 void SetupRC(void)
@@ -363,8 +424,8 @@ void Keyboard(unsigned char key, int x, int y)
 	if (key == '3') TorusTypes = 3;
 	if (key == '4') TorusTypes = 4;
 	if (key == '5') TorusTypes = 5;
-	if (key == '6') TorusTypes = 6;
-	if (key == '7') TorusTypes = 7;
+	if (key == '6') normalVectorPolygons = normalVectorPolygons ? FALSE : TRUE;
+	if (key == '7') normalVectorPoints = normalVectorPoints ? FALSE : TRUE;
 
 	RenderScene();
 }
