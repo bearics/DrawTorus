@@ -15,13 +15,14 @@ static float torus[36][18][3] = {
 static float smallTorus[36][18][3] = { 0, };
 static float bigTorus[36][18][3] = { 0, };
 
-static float normalVector[36][18][3] = { 0, };
+static float normalVectorOfPolygons[36][18][3] = { 0, };
 static float polygonCenterPoint[36][18][3] = { 0, };
+static float normalVectorOfPoints[36][18][3] = { 0, };
 static float circleCenterPoint[36][3] = { 0, };
 
 static int nTorusCircles = 8;
 static int nTorusPoints = 12;
-static int TorusTypes = 3;
+static int TorusTypes = 4;
 static bool normalVectorPolygons = FALSE;
 static bool normalVectorPoints = FALSE;
 
@@ -179,7 +180,7 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 		}
 	}
 
-	// get normal vector
+	// get normal vector of polygons
 	for (int nCircle = 0; nCircle < 36; nCircle++)
 	{
 		for (int nPoint = 0; nPoint < 18; nPoint++)
@@ -198,12 +199,38 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 
 			for (int i = 0; i < 3; i++)
 			{	// get normal vector
-				normalVector[nCircle][nPoint][i] = (polygonCenterPoint[nCircle][nPoint][i] - (circleCenterPoint[nCircle][i] + circleCenterPoint[(nCircle + 1) % 36][i]) / 2.0) / minorRadius;
+				normalVectorOfPolygons[nCircle][nPoint][i] = (polygonCenterPoint[nCircle][nPoint][i] - (circleCenterPoint[nCircle][i] + circleCenterPoint[(nCircle + 1) % 36][i]) / 2.0) / minorRadius;
 			}
 		}
 	}
 
-	nextPoint = nextPoint;
+	// get normal vector of points
+	for (int nCircle = 0; nCircle < 36; nCircle++)
+	{
+		for (int nPoint = 0; nPoint < 18; nPoint++)
+		{
+			float sum = 0;
+			for (int i = 0; i < 3; i++)
+			{	// get Vertical vector
+				
+				for (int y = 0; y < 2; y++)
+				{
+					for (int x = 0; x < 2; x++)
+					{
+						normalVectorOfPoints[nCircle][nPoint][i] += normalVectorOfPolygons[(nCircle - y < 0 ? 36 - y : nCircle - y)][(nPoint - x < 0 ? 18 - x : nPoint - x)][i];
+					}
+				}
+				sum += normalVectorOfPoints[nCircle][nPoint][i] * normalVectorOfPoints[nCircle][nPoint][i];
+			}
+			sum = sqrt(sum);
+			for (int i = 0; i < 3; i++)
+			{	// get normal vector
+				normalVectorOfPoints[nCircle][nPoint][i] = normalVectorOfPoints[nCircle][nPoint][i] / sum;
+			}
+		}
+	}
+
+
 }
 
 /**
@@ -317,7 +344,7 @@ void DrawTorusAsQuads(int nCircle, int nPoint)
 }
 
 /**
-	Draw normal vectors of Polygons and Quads
+	Draw normal vectors of Polygons
 */
 void DrawNormalVectorPolygons(int nCircle, int nPoint)
 {
@@ -329,7 +356,27 @@ void DrawNormalVectorPolygons(int nCircle, int nPoint)
 			glBegin(GL_LINES);
 			{
 				glVertex3f(polygonCenterPoint[circle][point][0], polygonCenterPoint[circle][point][1], polygonCenterPoint[circle][point][2]);
-				glVertex3f(polygonCenterPoint[circle][point][0] + normalVector[circle][point][0], polygonCenterPoint[circle][point][1] + normalVector[circle][point][1], polygonCenterPoint[circle][point][2] + normalVector[circle][point][2]);
+				glVertex3f(polygonCenterPoint[circle][point][0] + normalVectorOfPolygons[circle][point][0], polygonCenterPoint[circle][point][1] + normalVectorOfPolygons[circle][point][1], polygonCenterPoint[circle][point][2] + normalVectorOfPolygons[circle][point][2]);
+			}
+			glEnd();
+		}
+	}
+}
+
+/**
+	Draw normal vectors of Points
+*/
+void DrawNormalVectorPoints(int nCircle, int nPoint)
+{
+	for (int circle = 0; circle < nCircle; circle++)
+	{
+		for (int point = 0; point < nPoint; point++)
+		{
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			{
+				glVertex3f(torus[circle][point][0], torus[circle][point][1], torus[circle][point][2]);
+				glVertex3f(torus[circle][point][0] + normalVectorOfPoints[circle][point][0], torus[circle][point][1] + normalVectorOfPoints[circle][point][1], torus[circle][point][2] + normalVectorOfPoints[circle][point][2]);
 			}
 			glEnd();
 		}
@@ -371,8 +418,9 @@ void RenderScene()
 
 	if(normalVectorPolygons)
 		DrawNormalVectorPolygons(nTorusCircles, nTorusPoints);
-	//if(normalVectorPoints)
-		
+	if(normalVectorPoints)
+		DrawNormalVectorPoints(nTorusCircles, nTorusPoints);
+
 
 
 	glutSwapBuffers();
