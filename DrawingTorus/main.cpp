@@ -6,7 +6,7 @@
 #include <iostream>
 
 #define PI 3.14159265
-#define EPS 0.0001	// epsilon
+#define EPS 0.001	// epsilon
 
 static float viewer[3];
 static float torus[36][18][3] = {
@@ -230,7 +230,6 @@ void InitDrawTorus(float minorRadius, float majorRadius, float height)
 		}
 	}
 
-
 }
 
 /**
@@ -318,16 +317,37 @@ void DrawTorusAsLines(int nCircle, int nPoint, int epsilon)
 }
 
 /**
+	Check it is outside or inside
+*/
+bool IsOutside(float* vector1, float* vector2)
+{
+	// cross product
+	float sum = 0;
+	sum += vector1[0] * vector2[0];
+	sum += vector1[1] * vector2[1];
+	sum += vector1[2] * vector2[2];
+
+	return sum < 0 ? FALSE : TRUE;
+}
+
+/**
 	Draw torus as Quads
 */
 void DrawTorusAsQuads(int nCircle, int nPoint)
 {
-	glColor3f(0, 0, 1);
-
 	for (int circle = 0; circle < nCircle; circle++)
 	{
 		for (int point = 0; point < nPoint; point++)
 		{
+			float viewPolygonVector[3] = { 0, };
+			for (int i = 0; i < 3; i++)
+				viewPolygonVector[i] = polygonCenterPoint[circle][point][i] - viewer[i];
+
+			if (IsOutside(viewPolygonVector, normalVectorOfPolygons[circle][point]))
+				glColor3f(1, 0, 0);
+			else
+				glColor3f(0, 0, 1);
+
 			glBegin(GL_POLYGON);
 			{
 				for (int x = 0; x < 2; x++)
@@ -420,9 +440,7 @@ void RenderScene()
 		DrawNormalVectorPolygons(nTorusCircles, nTorusPoints);
 	if(normalVectorPoints)
 		DrawNormalVectorPoints(nTorusCircles, nTorusPoints);
-
-
-
+	   
 	glutSwapBuffers();
 	glFlush();
 }
