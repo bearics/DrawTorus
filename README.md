@@ -1,3 +1,3 @@
 # DrawTorus
 
-** Using OpenGL **
+**Using OpenGL**
